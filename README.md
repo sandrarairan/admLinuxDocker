@@ -10,6 +10,10 @@
 - [Dónde encontrar la documentación de los programas](#Dónde-encontrar-la-documentación-de-los-programas)
 - [Gestores de paquetes en Linux](#Gestores-de-paquetes-en-Linux)
 - [Estructura de archivos en Linux](#Estructura-de-archivos-en-Linux)
+- [Arrancando el sistema runlevels systemd](#Arrancando-el-sistema-runlevels-systemd)
+- [Uso de variables de entorno bashrc profile](#Uso-de-variables-de-entorno-bashrc-profile)
+- [Uso de redireccionamineto y pipes para logs](#Uso-de-redireccionamineto-y-pipes-para-logs)
+- [](#)
 - [](#)
 - [](#)
 - [](#)
@@ -308,3 +312,198 @@ Guardamos con w
 Formateamos la partición con mkswap /dev/xvdf5
 Una vez creada podemos activarla con swapon /dev/xvdf5, seleccionando la partición a la que le dimos formato swap.
 
+**Generar imágenes de discos duros**
+Muchas veces necesitamos sacar backups, o imágenes de discos duros, veamos algunas herramientas para esto.
+
+Crear imágenes con dd
+dd nos permite sacar una imágen completa del disco duro, para realizar la imagen.
+
+Primero debemos estar seguros que tenemos la partición desmontada.
+
+Usamos el comando:
+
+dd if=/dev/xvdf6 of=/var_new/backup/backup_xvdf7 bs=1MB
+if es la partición que deseamos hacer la imágen,
+of donde se va a guardar la imágen.
+
+Montar una imagen con loop
+Primero debemos activar el módulo del kernel con modprobe loop.
+
+Una vez activo, creamos una carpeta donde vamos a montar la imágen, con mkdir /tmp/iso_debian recuerda puedes seleccionar la ruta que desees.
+
+Ahora con el comando mount debian.iso /tmp/iso_debian -o loop estamos montando la imágen.
+
+Recuerda debes estar seguro de la ruta del archivo, puedes ir autocompletando la ruta con tab
+
+Escribir un archivo lleno de ceros
+En linux existe una ruta /dev/zero esta siempre va a devolver cero.
+
+Podemos crear el archivo con:
+
+dd if=/dev/zero of=zeros100M bs=1M c=100
+
+Leer un archivo para medir la velocidad del disco
+En Linux existe una ruta /dev/null la cual todo lo que enviemos va a desaparecer.
+
+Podemos medir la velocidad de un disco leyendo un archivo, enviando la información a null con:
+
+dd if=zeros100M of=/dev/null
+Recuerda: con el comando sync sincronizas el disco duro.
+
+**Administrar particiones GPT**
+Sí el arranque del sistema no funciona correctamente, no vamos a poder tener acceso al servidor, por esto es importante tenerlo configurado correctamente.
+
+Historicamente hemos podido iniciar el sistema con sistemas MBR o el sistema UEFI.
+
+Saber tipo de tabla de particiones
+Con fdisk -l /dev/xvda, muestra el tipo de la tabla de partición.
+
+Tabla de particiones GPT
+GPT permite tener 128 particiones en un disco duro.
+
+gdisk es un comando especial para particiones GPT.
+
+Crear particiones con gdisk
+Usamos el comando gdisk /dev/xvdh para acceder a configurar las particiones del disco. Recuerda debes seleccionar el disco que deseas configurar.
+
+Usamos la opción n para crear una nueva, y seleccionamos el número de la partición.
+
+Asignamos el tamaño de la partición en este caso +1G
+
+Seleccionamos el tipo de partición, por ejemplo 8300 para cargar tipo Linux filesystem
+
+**Administrar el arraque del sistema GRUB**
+El GRUB es gestor de arranque, que permite cargar el kernel y el sistema.
+
+Archivos de configuración
+En la carpeta /etc/grub.d vemos los archivos del grub.
+
+/boot/grub/grub.cfg es el archivo de configuración, pero no modifiques este archivo, para configurarlo usa /etc/grub.d
+
+El grub se coloca en el MBR, que esta en los primeros 512 Bytes del disco.
+
+Backup del MBR
+Podemos generar un backgrup del MBR con dd
+
+dd if=/dev/dvda of=/root/mbr_backup bs=512 count=1
+
+Actualizar grub
+update-grub2
+Instalar grub
+grub-install /dev/xvdf
+
+**Administrar discos duros con LVM**
+LVM nos permite realizar una configuración de discos duros que nos permita administrar el espacio de almacenamiento del servidor.
+
+Instalación
+apt-get install lvm2
+Crear volúmenes físicos
+Primero debemos agregar los discos físicos que vamos a usar para crear el LVM, para esto debemos formatear la partición a usar con tipo 8e
+
+pvcreate /dev/xvdf3, agrega la partición a los volúmenes físicos del LVM
+
+pvs listar los discos en los volúmenes lógicos
+
+Grupos
+vgcreate databases /dev/xvdf3, se agrega la partición a un grupo
+
+vgs listar los grupos
+
+vgreduce databases /dev/xvdg remueve una partición del grupo
+
+Volumenes lógicos
+lvcreate -n postgres -L 10g databases, crea una partición usando el espacio de un grupo
+Extender tamaño de la partición
+lvextend -L+10G /dev/databases/posgress
+
+resize2fs /dev/databases/posgress
+
+**Apagar servidores de forma remota**
+Los administradores de servidores normalmente deben apagar servidores de forma remota, recuerda:
+
+Revisar en cual servidor estas conectado
+Linux no preguntar confirmación
+Es diferente apagar y reiniciar
+Comandos
+shutdown -r now reincia la máquina
+shutdown -h now apagar la máquina
+systemctl reboot reiniciar
+
+## Arrancando el sistema runlevels, systemd
+En Linux por defecto han existido 6 niveles que todos los programas arrancan, se pueden ver en las carpetas /etc/rc0.d hasta /etc/rc6.d
+
+Dentro de estas carpetas los archivos con S es de arranque y K es de salida
+
+runlevel
+con runlevel dice en qué sistema se está corriendo
+
+systemd
+systemd permite saber un árbol de procesos, indicando las dependencias de estos para interactuar con systemd usamos systemctl
+
+Listar dependencias
+systemctl list-dependencies [servicio]
+
+Ver servicios
+systemctl
+
+Ver un servicio
+systemctl show [nombre del servicio]
+
+Buscar servicios
+ps aux | grep [servicio]
+
+Recargar un servicio
+systemctl deamon-reload
+
+Reiniciar un servicio
+systemctl restart [nombre]
+
+Estado de un servicio
+systemctl status [nombre]
+
+## Uso de variables de entorno, bashrc, profile
+Las variables de entorno permiten configurar diferentes ambientes cómo de desarrollo o producción, también guardar llaves de seguridad.
+
+Una variable de entorno es simplemente una variable
+
+Crear una variabla de entorno
+platzi="http://platzi.com"
+
+Imprimir variable
+echo $PLATZI
+
+con export listas todas las variables
+
+.bashrc y .profile
+Estos archivos guardan configuraciones de la sesión como alias, variables de entorno, etc.
+
+Agregar una variable de entorno
+En el archivo /etc/bash.bashrc agregar una línea declarando la variables export HOME_DB=/var_new
+
+Recuerda:
+
+Cada sesión tiene sus variables de entorno
+En PATH se guardan las rutas donde el sistema busca binarios
+Las variables de entorno solo se mantienen durante la sesión, debes exportarlas para guardarlas
+
+## Uso de redireccionamineto y pipes para logs
+Muchas veces los logs se centralizan en un sistema para verlos otras se guardan en el servidor, para poder darle valor a los logs, debemos poder encontrar información en el.
+
+Leer un archivo
+less [nombre archivo]
+more [nombre archivo]
+
+Filtrar información
+grep -r "25/Nov" * buscar los del 25 Nov en todos los archivo recursivamente
+
+Contar líneas
+wc [archivo]
+
+Encadenar procesos
+grep -r "25/Nov" * | wc, el resultado de grep se le pasa a wc
+
+Enviar la salida de un comando a un archivo
+grep -r "25/Nov" * > /tmp/25nov
+
+Ver últimos logs
+tail [nombre]
