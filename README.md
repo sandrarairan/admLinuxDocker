@@ -13,7 +13,7 @@
 - [Arrancando el sistema runlevels systemd](#Arrancando-el-sistema-runlevels-systemd)
 - [Uso de variables de entorno bashrc profile](#Uso-de-variables-de-entorno-bashrc-profile)
 - [Uso de redireccionamineto y pipes para logs](#Uso-de-redireccionamineto-y-pipes-para-logs)
-- [](#)
+- [Monitorear eliminar y establecer prioridades en procesos](#Monitorear-eliminar-y-establecer-prioridades-en-procesos)
 - [](#)
 - [](#)
 - [](#)
@@ -507,3 +507,297 @@ grep -r "25/Nov" * > /tmp/25nov
 
 Ver últimos logs
 tail [nombre]
+
+## Monitorear, eliminar y establecer prioridades en procesos
+Los procesos permiten al sistema operativo trabajar, definiendo cuando se debe procesar información.
+
+Los procesos en Linux están encapsulados, esto quiere decir que el usuario que lanzo el proceso es quien lo debe quitar.
+
+Listar procesos del sistema
+ps aux
+Revisar carga del sistema
+htop
+Recuerda:
+
+Todo proceso en Linux tiene un número único
+Un proceso puede tener un valor de prioridad desde -20 hasta 19
+
+## Enlaces duros, simbólicos y sistemas de backups
+Enlace simbolico
+Un archivo sin datos, que solo contiene una referencia a la ubicación del archivo original.
+
+ln -s /home/ubuntu/archivo.iso debian.iso
+
+Enlaces duros
+En un archivo enlazado al archivo original pero con un nombre diferente.
+
+ln a/zero b/
+
+## Manejo de usuarios y grupos
+Linux es un sistema multiusuario, cada usuario puede correr con diferentes configuraciones, permisos, etc.
+
+Crear un usuario
+adduser platzi, crea un usuario
+
+Todo usuario tiene un id, home y el terminal a usar.
+
+Cambiar de usuario
+su - [nombre de usuario]
+
+Grupos
+Cada usuario puede pertenecer a diferentes grupos que le permita acceder a recursos
+
+groups te dice a que grupos tienes acceso
+
+Añadir a un nuevo grupo
+addgroup [Usuario] [grupo]
+addgroup platzi sudo
+
+Se necesita volverse a conectar al usuario para que cargue los permisos al usuario.
+
+Recuerda:
+
+En el archivo /etc/shadow se guardan las contraseñas
+
+## Generar backup de Base de datos
+Existen muchas formas de generar un backup, en este video veremos algunas de las formas:
+
+En amazon puedes generar una imagen de la instancia en la que estás trabajando.
+
+Generar un backup de la base de datos
+
+pg_dump [base de datos ] > backup.2017.sql
+
+Es una buena práctica nombrar el archivo con el nombre de la base de datos y la fecha.
+
+## Uso de socat y manejo de redireccionamiento de puertos
+Muchas veces necesitamos redireccionar el tráfico entre puertos para esto podemos usar socat
+
+Instalar socat
+sudo apt-get install socat
+
+Crear redirección
+socat TCP-LISTEN:8080, fork, reuseaddr TCP:localhost:80
+
+Redirecciona todo el tráfico del puerto 8080 al 80
+
+Redirección UDP
+socat UDP-LISTEN:80,reuseaddr,fork TCP4:localhost:8080
+
+## Tareas programadas y cómo monitorearlas
+crontab nos permite crear tareas programadas
+
+Comando
+crontab -e nos permite crear una nueva tarea
+
+El cron se compone de cinco valores importantes.
+
+Minuto hora [dia del mes] mes [dia de la semana]
+
+0 9 * * 1 date >> /tmp/date
+
+Script para backup
+Ir a la carpeta de scripts /etc/cron.d/
+
+Crear el script vim backup_database
+
+55 15 * * * postgres /usr/bin/pg_dump jav_spheb > /var/lib/postfresql/new_db
+
+
+## Seguridad del kernel
+El kernel es la pieza fundamental del sistema operativo, el interactua entre el hardware y los programas que se están ejecutando.
+
+Por defecto el kernel de Linux está bien asegurado, veamos cómo modificar estos límites
+
+Modificar límites
+En el archivo /etc/security/limits.conf se encuentra la configuración de límites del kernel
+
+*  soft  nofile  32000
+*  hard  nofile  35000
+De esta forma estamos estableciendo la cantidad de archivos que puede abrir el sistema al tiempo.
+
+## Permisos de archivos
+Todos los días vas a trabajar con permisos en Linux, estos nos permiten controlar la seguridad.
+
+Para listar archivos mostrando permisos lo haces con ls -l
+
+La información se muestra cómo organizado en usuario grupo otros, cada uno tiene un ítem para lectura, escritura y ejecución.
+
+Cambiar permisos
+chmod [bloque][+ o -][permiso] [nombre de archivo]
+chmod o-r test, los otros quitar el permiso de lectura al archivo test
+
+chmod 776 [nombre de archivo]
+
+4 lectura
+2 escritura
+1 ejecución
+Cambiar propietario de un curso
+sudo chown [usuario]:[grupo] [archivo]
+sudo chown platzi: /tmp/delete
+
+## Configuración de red
+Ver la configuración de interfaces de red
+ifconfig
+
+Inicializar la interfaz
+dhclient eth1
+
+Archivos de configuración
+/etc/network/interfaces
+/etc/network/interfaces.d
+
+Activar DHCP automatico
+En el archivo interfaces.d agregamos la línea
+
+iface eth1 inet dhcp
+
+Apagar inferface de red
+ifdown eth0
+
+Multiples ip sobre una misma interface
+ifconfig eth0:0 192.168.10.5
+
+Comando ip
+Con este comando podemos sustituir ifconfig
+
+ip addr show, mostar las direcciones
+
+Enrutamiento
+Para ver la tabla de enrutamiento se puedes usar route -n
+
+## Cómo manejar mi firewall
+iptables permite transmitir la información entre las interfaces de red y el sistema operativo.
+
+Por defecto el firewall tiene algunas políticas generales
+
+Listar información del firewall
+iptables -L
+
+input: los paquetes que entran
+output: paquetes que salen
+forward: paquetes que llegan y se redireccionan
+
+Rechazar todos los paquetes de entrada
+iptables -P INPUT DROP
+
+Aceptar conexiones de un puerto especifico
+iptables -A INPUT -i eth0 -p tcp --dport 22 -j ACCEPT
+
+Guardar las reglas
+iptables-save > /etc/iptables.rules
+
+
+## Manejo de DNS y dig
+El DNS permite mapear un nombre a una dirección IP
+
+/etc/host guarda la lista de ips y nombres asignados en la máquina
+
+Los distintos tipos de DNS son:
+
+A - IPv4
+CNAME - nombre
+MX - correo
+AAAA - dirección IPv6
+TXT - texto
+PTR - dns reverso
+Consultar dominios
+apt-get install dnsutils
+
+dig linux.platzi.com a dns oficiales
+dig linux.platzi.com @[servidor dns] a un servidor especifico
+
+## Instalación de NTP
+NTP es un servicio que permite sincronizar la hora.
+
+Instalación
+apt-get install ntp
+
+Consultas
+ntpq permite hacer consultas al servicio
+
+Activar
+ntpdate-debian selecciona un servidor y hace la configuración.
+
+Archivo de configuración
+/etc/default/ntpdate
+
+## Auditoria de login y logs
+who muestra los usuarios conectados
+w quién está conectado y hace cuanto estan inactivos
+/var/log/auth queda registrado todos los intentos de acceso
+
+## Tuneles con ssh, autossh y socat
+Abrir un túnel en el servidor
+ssh -Ng -L9898:localhost:80 -i platzi
+Aceder a la máquina local
+ssh -NR 10022:localhost:22 -i platzi
+
+ssh -p 10022 usuario@localhost
+
+Crear proxi
+ssh -N -D10090 platzi
+
+## Backup de archivos de configuración con etckeeper
+Cuando mantenemos un gran sistema necesitamos tener auditoria de las acciones en el servidor.
+
+backup de etc/
+Con etckeeper podemos guardar la configuraciones de etc, usando git.
+
+Instalación:
+
+apt-get install etckeeper
+
+Guardar cambios
+
+etckeeper commit
+
+## Prevenir ataques con fail2ban
+Muchas veces los servidores están expuestos a ataques, fail2ban nos permite bloquear ataques.
+
+Instalación
+apt-get install fail2ban
+
+Configuración
+/etc/fail2ban/fail2ban.conf
+/etc/fail2ban/jail.conf
+
+Filtros
+Para activar un filtro lo debes buscar y añadir la línea enabled = true, por ejemplo en nginx debes buscar el archivo etc/fail2ban/filter.d/nginx-http-auth.conf
+
+Restaurar el servicio
+fail2ban.service restart
+
+## Backup de archivos de configuración con etckeeper
+Cuando mantenemos un gran sistema necesitamos tener auditoria de las acciones en el servidor.
+
+backup de etc/
+Con etckeeper podemos guardar la configuraciones de etc, usando git.
+
+Instalación:
+
+apt-get install etckeeper
+
+Guardar cambios
+
+etckeeper commit
+
+## ncriptación de datos
+gpg es un programa que maneja una serie de configuraciones para encriptación.
+
+Encriptación simetrica
+gpg -ca -o [salida] [entrada]
+
+## Encontrar el dueño del paquete
+Para encontrar el dueño de un archivo podemos el comandodpkg -S [nombre del archivo]
+
+Para ver todos los archivos de un programa dpkg -l [nombre del paquete]
+
+## md5sum, integridad de archivos y paquetes
+md5sum permite sacar una suma binaria de un archivo con un hash
+
+Calcular m5sum
+md5sum [nombre del archivo]
+
+
+
